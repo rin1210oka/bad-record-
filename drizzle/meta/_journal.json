@@ -1,0 +1,62 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1793465829228,
+      "tag": "0000_useful_redwing",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1793503542695,
+      "tag": "0001_sad_red_skull",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793504817833,
+      "tag": "0002_parallel_kid_colt",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1793511245008,
+      "tag": "0003_left_justice",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1793660713239,
+      "tag": "0004_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793660729754,
+      "tag": "0005_match_feedback",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793660846783,
+      "tag": "0006_access_expiry",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793661355945,
+      "tag": "0007_invite_login_key",
+      "breakpoints": true
+    }
+  ]
+}
