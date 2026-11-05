@@ -1,5 +1,3 @@
-"use client";
-
 import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { normalizeMemberName } from '../lib/member-name';
 import { affiliationLabel, memberClassification, memberStage, sortMembers } from '../lib/member-cohort';

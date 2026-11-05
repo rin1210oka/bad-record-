@@ -77,7 +77,7 @@ function Gate(){
     }catch(e){setError(message(e));}finally{setBusy(false);}
   }
   const accountControls=<div className="firebase-account"><span>{viewer?.name}</span><button className="text-button" onClick={()=>{if(confirm('未保存の入力は失われます。ロックしますか？'))lock();}}>ロック</button><button className="text-button" onClick={()=>{if(confirm('未保存の入力は失われます。ログアウトしますか？'))void logout().catch(e=>setError(message(e)));}}>ログアウト</button></div>;
-  if(step==='ready'&&viewer)return <AccessContext.Provider value={{viewer,refresh,logout,recordRecovery:()=>{},controls:accountControls}}><TeamApp key={viewer.id}/></AccessContext.Provider>;
+  if(step==='ready'&&viewer)return <AccessContext.Provider value={{viewer,controls:accountControls}}><TeamApp key={viewer.id}/></AccessContext.Provider>;
   const pinField=(label:string,value:string,change:(v:string)=>void)=><label>{label}<input className="access-pin" type="password" inputMode="numeric" pattern="[0-9]{4}" minLength={4} maxLength={4} required autoComplete="off" value={value} onChange={e=>change(e.target.value.replace(/[^0-9]/g,''))}/></label>;
   return <div className="access-shell"><div className="access-brand"><span className="access-brand-symbol" aria-hidden="true">↗</span><span>Shuttle Note<small>TEAM MATCH JOURNAL</small></span></div><div className="access-layout"><section className="access-intro"><div className="eyebrow">ONE TEAM. EVERY MATCH.</div><h1>一試合ずつ、<br/>チームの力に。</h1><p>現役も、卒業してからも。<br/>試合の記録と、自分だけの振り返りを。</p><div className="access-court" aria-hidden="true"><span/><i/></div></section><section className="access-card" aria-label="チームへの入場">
     <span className="access-step">YOUR TEAM, YOUR JOURNAL</span>

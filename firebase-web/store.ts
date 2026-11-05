@@ -1,4 +1,4 @@
-import {collection,doc,getDoc,getDocs,query,where,orderBy,limit,startAfter,runTransaction,serverTimestamp,Timestamp,type DocumentData,type QueryDocumentSnapshot,type Transaction} from 'firebase/firestore';
+import {collection,doc,getDoc,getDocs,query,where,orderBy,limit,startAfter,runTransaction,serverTimestamp,Timestamp,type DocumentData,type QueryDocumentSnapshot} from 'firebase/firestore';
 import {auth,db} from './firebase';
 import {TeamError,memberInput,matchInput,fingerprint,normal,version,type Member,type MatchInput} from '../lib/team-domain';
 import {memberSnapshot,japanDate,schoolYear} from '../lib/member-cohort';
@@ -24,7 +24,7 @@ export async function membership(){const scope=captureSession(),snap=await getDo
 export async function viewer():Promise<AccessViewer>{
   const scope=captureSession(),id=scope.id,m=await membership();assertSession(scope);if(!m?.active)throw new TeamError('部への参加登録を確認してください。',403);
   const p=await getDoc(memberRef(m.playerId));assertSession(scope);if(!p.exists())throw new TeamError('選手情報を確認してください。');
-  return {id,memberId:m.playerId,name:p.data().name,role:'member',loginId:auth.currentUser?.email||''};
+  return {id,memberId:m.playerId,name:p.data().name};
 }
 export async function joinTeam(phrase:string,body:Row){
   const scope=captureSession(),id=scope.id,input=memberInput(body),joinKey=await digest(phrase),key=await digest(nameKey(input));

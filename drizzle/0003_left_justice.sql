@@ -1,1 +1,0 @@
-ALTER TABLE `team_members` ADD `generation` integer;

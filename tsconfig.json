@@ -17,37 +17,24 @@
     "isolatedModules": true,
     "jsx": "react-jsx",
     "incremental": true,
-    "plugins": [
-      {
-        "name": "next"
-      }
-    ],
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
     "types": [
       "node",
-      "@cloudflare/workers-types"
+      "vite/client"
     ]
   },
   "include": [
-    "next-env.d.ts",
-    "**/*.ts",
-    "**/*.tsx",
-    ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "firebase-web/**/*.ts",
+    "firebase-web/**/*.tsx",
+    "lib/**/*.ts",
+    "vite.firebase.config.ts"
   ],
   "exclude": [
     "node_modules",
-    "examples",
-    "dist",
-    ".vinext",
-    ".wrangler",
-    ".sites-runtime",
-    "outputs",
-    "work"
+    "dist-firebase",
+    ".firebase",
+    ".firebase-tools",
+    "backups"
   ]
 }

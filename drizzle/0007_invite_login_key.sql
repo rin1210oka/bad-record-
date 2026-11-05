@@ -1,1 +1,0 @@
-CREATE UNIQUE INDEX `access_invites_active_login_key` ON `access_invites` (`login_key`) WHERE "access_invites"."redeemed_at" IS NULL AND "access_invites"."revoked_at" IS NULL;

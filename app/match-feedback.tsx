@@ -1,20 +1,13 @@
-"use client";
-
 import {useCallback,useEffect,useId,useRef,useState} from 'react';
-import type {FeedbackContext,MatchFeedback} from '../lib/feedback-store';
-import {getClientBackend} from '../lib/client-backend';
+import type {FeedbackContext,MatchFeedback} from '../lib/feedback-types';
+import {clientRequest} from '../lib/client-backend';
 
 type FeedbackResponse={feedback:MatchFeedback|null;context:FeedbackContext;archived:boolean;canCreate:boolean};
 type JournalEntry={matchId:string;context:FeedbackContext;version:number;updatedAt:string;archived:boolean};
 async function request<T>(url:string,method='GET',body?:unknown,signal?:AbortSignal):Promise<T>{
-  const backend=getClientBackend();
-  if(backend){signal?.throwIfAborted();const value=await backend<T>(url,method,body);signal?.throwIfAborted();return value;}
-  const response=await fetch(url,{method,credentials:'same-origin',cache:'no-store',signal,...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});
-  const result=await response.json().catch(()=>({error:'通信を確認して、もう一度お試しください。'})) as {error?:string};
-  if(response.status===401)window.dispatchEvent(new Event('access-expired'));
-  if(!response.ok)throw new Error(result.error||'振り返りを取得できませんでした。');
-  return result as T;
+  signal?.throwIfAborted();const value=await clientRequest<T>(url,method,body);signal?.throwIfAborted();return value;
 }
+
 function FeedbackDialog({title,close,busy=false,children}:{title:string;close:()=>void;busy?:boolean;children:React.ReactNode}){
   const dialog=useRef<HTMLDialogElement>(null),heading=useId();
   useEffect(()=>{dialog.current?.showModal();},[]);

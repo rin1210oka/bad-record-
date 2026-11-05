@@ -30,7 +30,7 @@ async function join(){await store.joinTeam('random-test-phrase',profile);store.s
 const call=(path,method='GET',body)=>store.firebaseRequest(path,method,body);
 async function fixture(){await join();const {member}=await call('/api/members','POST',{...profile,name:'イノウエ'});const input={id:crypto.randomUUID(),date:'2026-11-04',category:'ゲーム練',event:'',discipline:'シングルス',opponentType:'internal',sideAIds:['self-self'],sideBIds:[member.id],opponents:[],scores:[[15,14],[2,5],[6,6],[4,1]],memo:''};return {member,input};}
 test('自分の登録からチーム取得、Google UIDとのひも付け、端末ロックを実保存で確認',async()=>{
-  await join();const data=await call('/api/team');assert.equal(data.members.length,1);assert.equal(data.viewer.memberId,'self-self');assert.equal(data.viewer.role,'member');
+  await join();const data=await call('/api/team');assert.equal(data.members.length,1);assert.equal(data.viewer.memberId,'self-self');
   store.setUnlocked(false);await assert.rejects(call('/api/team'),/ロック/);
 });
 test('実保存で試合再送・逆側からの重複・明示した別試合・競合を検証',async()=>{
