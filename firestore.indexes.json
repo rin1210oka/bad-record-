@@ -1,0 +1,11 @@
+{
+  "indexes": [],
+  "fieldOverrides": [
+    {"collectionGroup":"feedback","fieldPath":"goodPoints","indexes":[]},
+    {"collectionGroup":"feedback","fieldPath":"improvements","indexes":[]},
+    {"collectionGroup":"feedback","fieldPath":"nextAction","indexes":[]},
+    {"collectionGroup":"feedback","fieldPath":"context","indexes":[]},
+    {"collectionGroup":"matches","fieldPath":"memo","indexes":[]},
+    {"collectionGroup":"memberships","fieldPath":"joinKey","indexes":[]}
+  ]
+}

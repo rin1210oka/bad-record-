@@ -30,6 +30,14 @@ yarn-error.log*
 .env*
 .dev.vars*
 *.pem
+!/.env.firebase.example
+/dist-firebase/
+/.firebase/
+/.firebase-tools/
+*-debug.log
+/backups/
+*service-account*.json
+*serviceAccount*.json
 
 # Checkout-local tool state
 /.wrangler/

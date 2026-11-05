@@ -1,5 +1,20 @@
 # Shuttle Note — Team Edition
 
+## Firebase版（現在の移行先）
+
+画面はFirebase Hosting、本人確認は個人Googleアカウント、保存はFirestoreを使います。
+課金登録なしのSparkプランを前提とし、Functions / Cloud Run / App Hostingは使いません。
+部の合言葉で各自が参加登録し、端末の4桁PINは簡易画面ロックとして使います。
+部長による参加承認や毎年の管理者引き継ぎは不要です。
+
+- 起動：`npm run dev`（`npm run dev:firebase` も同じ）
+- 本番ビルド：`npm run build`（`npm run build:firebase` も同じ）
+- 権限・保存処理の検証：`npm run test:firebase`（Java 21以上が必要）
+- 公開・バックアップ・復元：[FIREBASE_RUNBOOK.md](FIREBASE_RUNBOOK.md)
+- 実装前の設計記録：[FIREBASE_FREE_ACCESS_DESIGN.md](FIREBASE_FREE_ACCESS_DESIGN.md)
+
+以下は、ロールバック用に保持しているD1旧版の仕様と開発手順です。
+
 1チームのメンバーと試合を共同管理するバドミントン記録アプリ。React / TypeScript / Vinext と Cloudflare D1を使用します。
 
 ## 仕様
@@ -57,7 +72,7 @@
 
 ## 開発
 
-依存導入後 `npm run dev`。`.dev.vars`にローカル専用の`ACCESS_PEPPER`（32文字以上の十分に長い乱数）と`ACCESS_SETUP_OWNER_EMAIL=seedy@sites.test`を設定します。ループバックで `/signin-with-chatgpt?return_to=/` を開くと初期設定用の開発認証が使えます。D1のローカルと本番は別です。本番の同名設定はSitesのランタイムシークレットに設定し、ソースや公開ファイルには含めません。運用後の`ACCESS_PEPPER`の安易な変更は既存の認証情報を無効にするため避けます。
+D1旧版は依存導入後 `npm run dev:d1`。`.dev.vars`にローカル専用の`ACCESS_PEPPER`（32文字以上の十分に長い乱数）と`ACCESS_SETUP_OWNER_EMAIL=seedy@sites.test`を設定します。ループバックで `/signin-with-chatgpt?return_to=/` を開くと初期設定用の開発認証が使えます。D1のローカルと本番は別です。本番の同名設定はSitesのランタイムシークレットに設定し、ソースや公開ファイルには含めません。運用後の`ACCESS_PEPPER`の安易な変更は既存の認証情報を無効にするため避けます。
 
 スキーマ変更時は `npm run db:generate`。`drizzle/` の生成SQLとメタデータをコミットします。ローカルへの適用とSites公開はスターターの手順に従います。
 

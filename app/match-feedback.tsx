@@ -2,10 +2,13 @@
 
 import {useCallback,useEffect,useId,useRef,useState} from 'react';
 import type {FeedbackContext,MatchFeedback} from '../lib/feedback-store';
+import {getClientBackend} from '../lib/client-backend';
 
 type FeedbackResponse={feedback:MatchFeedback|null;context:FeedbackContext;archived:boolean;canCreate:boolean};
 type JournalEntry={matchId:string;context:FeedbackContext;version:number;updatedAt:string;archived:boolean};
 async function request<T>(url:string,method='GET',body?:unknown,signal?:AbortSignal):Promise<T>{
+  const backend=getClientBackend();
+  if(backend){signal?.throwIfAborted();const value=await backend<T>(url,method,body);signal?.throwIfAborted();return value;}
   const response=await fetch(url,{method,credentials:'same-origin',cache:'no-store',signal,...(body?{headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}:{})});
   const result=await response.json().catch(()=>({error:'通信を確認して、もう一度お試しください。'})) as {error?:string};
   if(response.status===401)window.dispatchEvent(new Event('access-expired'));
@@ -62,9 +65,12 @@ export function MatchFeedbackModal({matchId,onClose,onSaved}:{matchId:string;onC
   </FeedbackDialog>;
 }
 export function FeedbackJournal({onClose,onSelect}:{onClose:()=>void;onSelect:(matchId:string)=>void}){
+  const [hasMore,setHasMore]=useState(false),[loadingMore,setLoadingMore]=useState(false);
   const [entries,setEntries]=useState<JournalEntry[]|null>(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
-  useEffect(()=>{const controller=new AbortController();setError('');setEntries(null);void request<{feedback:JournalEntry[]}>('/api/feedback','GET',undefined,controller.signal).then(data=>setEntries(data.feedback)).catch(failure=>{if(!controller.signal.aborted)setError((failure as Error).message);});return()=>controller.abort();},[retry]);
+  useEffect(()=>{const controller=new AbortController();setError('');setEntries(null);void request<{feedback:JournalEntry[];hasMore?:boolean}>('/api/feedback','GET',undefined,controller.signal).then(data=>{setEntries(data.feedback);setHasMore(Boolean(data.hasMore));}).catch(failure=>{if(!controller.signal.aborted)setError((failure as Error).message);});return()=>controller.abort();},[retry]);
+  async function more(){setLoadingMore(true);try{const data=await request<{feedback:JournalEntry[];hasMore?:boolean}>('/api/feedback?more=1');setEntries(current=>[...(current||[]),...data.feedback.filter(entry=>!current?.some(old=>old.matchId===entry.matchId))]);setHasMore(Boolean(data.hasMore));}catch(e){setError((e as Error).message);}finally{setLoadingMore(false);}}
   return <FeedbackDialog title="自分の振り返り一覧" close={onClose}>
     {error?<><p className="form-error" role="alert">{error}</p><button type="button" className="secondary" onClick={()=>setRetry(value=>value+1)}>再読み込み</button></>:entries===null?<p className="feedback-loading" role="status">読み込んでいます…</p>:entries.length?<ul className="feedback-journal-list">{entries.map(entry=><li key={entry.matchId}><button type="button" className="feedback-journal-entry" onClick={()=>onSelect(entry.matchId)}><MatchContext context={entry.context} archived={entry.archived}/><span className="feedback-journal-open">振り返りを開く ↗</span></button></li>)}</ul>:<div className="feedback-empty"><h3>振り返りはまだありません</h3><p>出場した試合の「自分の振り返り」から書けます。<br/>保存した振り返りは、この一覧で読み返せます。</p></div>}
+    {hasMore&&entries&&<button className="secondary" disabled={loadingMore} onClick={()=>void more()}>{loadingMore?'読み込み中…':'もっと見る'}</button>}
   </FeedbackDialog>;
 }

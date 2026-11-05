@@ -1,5 +1,8 @@
 # Source file inventory
 
+現在の標準起動・ビルドはFirebase版です（2026-11-05）。以下は初回GitHub取り込み時の履歴であり、現在の実装状況は README.md / FIREBASE_RUNBOOK.md を参照してください。
+
+
 Imported from the existing Shuttle Note application, source commit `24a625db2ce86a564ccd0e05670bb69f8096f500`.
 
 - 164 application/source/configuration/test files, plus this inventory.

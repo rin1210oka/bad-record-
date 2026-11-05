@@ -1,0 +1,21 @@
+import {before,after,test} from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs/promises';
+import {execFile} from 'node:child_process';
+import {promisify} from 'node:util';
+import {initializeTestEnvironment} from '@firebase/rules-unit-testing';
+import {doc,setDoc,getDoc,Timestamp} from 'firebase/firestore';
+const exec=promisify(execFile);let env;
+const run=args=>exec(process.execPath,['scripts/firebase-ops.mjs',...args,'--emulator'],{env:{...process.env,FIRESTORE_EMULATOR_HOST:'127.0.0.1:8080'}});
+before(async()=>{env=await initializeTestEnvironment({projectId:'demo-shuttle-note',firestore:{rules:await fs.readFile('firestore.rules','utf8'),host:'127.0.0.1',port:8080}});await env.clearFirestore();});
+after(async()=>{await env?.cleanup();});
+test('無料の手動バックアップは親文書のない振り返りも含み、空の保存先へ上書きなしで復元できる',async()=>{
+  await env.withSecurityRulesDisabled(async c=>{const db=c.firestore();await setDoc(doc(db,'players','p'),{name:'アオキ',at:Timestamp.fromMillis(123456)});await setDoc(doc(db,'privateUsers','a','feedback','m'),{goodPoints:'本人の記録',scores:['21:19']});});
+  const before=new Set(await fs.readdir('backups').catch(()=>[]));await run(['backup']);
+  const added=(await fs.readdir('backups')).filter(f=>!before.has(f));assert.equal(added.length,1);
+  const file='backups/'+added[0],snapshot=JSON.parse(await fs.readFile(file,'utf8'));assert.equal(snapshot.project,'demo-shuttle-note');assert.equal(snapshot.documents.length,2);assert.ok(snapshot.documents.some(d=>d.name.endsWith('/privateUsers/a/feedback/m')));
+  await assert.rejects(run(['restore',file,'--apply']));
+  await env.clearFirestore();await run(['restore',file]);
+  await env.withSecurityRulesDisabled(async c=>assert.equal((await getDoc(doc(c.firestore(),'players','p'))).exists(),false));
+  await run(['restore',file,'--apply']);await env.withSecurityRulesDisabled(async c=>{assert.equal((await getDoc(doc(c.firestore(),'privateUsers','a','feedback','m'))).data().goodPoints,'本人の記録');assert.equal((await getDoc(doc(c.firestore(),'players','p'))).data().at.toMillis(),123456);});
+});

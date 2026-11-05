@@ -1,10 +1,11 @@
 "use client";
 
 import { createContext, useContext } from 'react';
+import type {ReactNode} from 'react';
 
 export type AccessViewer = { id: string; memberId: string | null; name: string; role: 'admin' | 'member'; loginId: string };
 export type AccessState = { authenticated: boolean; needsSetup: boolean; setupAllowed: boolean; viewer?: AccessViewer };
-export const AccessContext = createContext<{ viewer: AccessViewer; refresh: () => Promise<void>; logout: () => Promise<void>; recordRecovery: (result: { viewer: AccessViewer; recoveryCode: string }) => void } | null>(null);
+export const AccessContext = createContext<{ viewer: AccessViewer; refresh: () => Promise<void>; logout: () => Promise<void>; recordRecovery: (result: { viewer: AccessViewer; recoveryCode: string }) => void; controls?: ReactNode } | null>(null);
 export function useAccess() {
   const context = useContext(AccessContext);
   if (!context) throw new Error('入場情報を読み込めませんでした。');
