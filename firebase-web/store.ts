@@ -1,4 +1,4 @@
-import {collection,doc,getDoc,getDocs,query,where,orderBy,limit,startAfter,runTransaction,serverTimestamp,Timestamp,type DocumentData,type QueryDocumentSnapshot} from 'firebase/firestore';
+import {collection,doc,getDoc,getDocs,setDoc,query,where,orderBy,limit,startAfter,runTransaction,serverTimestamp,Timestamp,type DocumentData,type QueryDocumentSnapshot} from 'firebase/firestore';
 import {auth,db} from './firebase';
 import {TeamError,memberInput,matchInput,fingerprint,normal,version,type Member,type MatchInput} from '../lib/team-domain';
 import {memberSnapshot,japanDate,schoolYear} from '../lib/member-cohort';
@@ -39,6 +39,49 @@ export async function joinTeam(phrase:string,body:Row){
     tx.set(lock,{playerId:player.id,key:nameKey(input)});
   });
   assertSession(scope);
+}
+export type JoinPlayer = Member & {ownerUid:string|null};
+export type LinkRequest = {uid:string;playerId:string;playerName:string;approverUid:string;joinKey:string;status:'pending'|'approved'|'rejected'};
+export async function ownLinkRequest():Promise<LinkRequest|null>{
+  const scope=captureSession(),snap=await getDoc(doc(db,'linkRequests',scope.id));assertSession(scope);
+  return snap.exists()?snap.data() as LinkRequest:null;
+}
+export async function prepareJoin(phrase:string):Promise<JoinPlayer[]>{
+  const scope=captureSession(),joinKey=await digest(phrase);
+  await setDoc(doc(db,'joinSessions',scope.id),{joinKey,createdAt:serverTimestamp()});assertSession(scope);
+  const result=await getDocs(query(collection(db,'players'),where('deletedAt','==',null)));assertSession(scope);
+  return result.docs.map(d=>d.data() as JoinPlayer).filter(p=>!p.deletedAt);
+}
+export async function requestPlayerLink(playerId:string,approverUid:string){
+  const scope=captureSession();if(approverUid===scope.id)throw new TeamError('自分自身には確認を依頼できません。');
+  const ref=doc(db,'linkRequests',scope.id);
+  await runTransaction(db,async tx=>{
+    const [m,r,p,session]=await Promise.all([tx.get(doc(db,'memberships',scope.id)),tx.get(ref),tx.get(memberRef(playerId)),tx.get(doc(db,'joinSessions',scope.id))]);
+    assertSession(scope);
+    if(m.exists()||r.exists())throw new TeamError('すでに登録または確認依頼があります。画面を更新してください。');
+    if(!p.exists()||p.data().deletedAt||p.data().ownerUid!==null)throw new TeamError('この選手は現在選べません。名簿を確認し直してください。');
+    if(!session.exists())throw new TeamError('部の合言葉を確認してください。');
+    tx.set(ref,{uid:scope.id,playerId,playerName:p.data().name,approverUid,joinKey:session.data().joinKey,status:'pending',createdAt:serverTimestamp(),decidedAt:null});
+  });assertSession(scope);
+}
+async function linkRequests(){
+  const scope=captureSession();const result=await getDocs(query(collection(db,'linkRequests'),where('approverUid','==',scope.id)));assertSession(scope);
+  return {requests:result.docs.map(d=>d.data() as LinkRequest).filter(r=>r.status==='pending')};
+}
+async function decideLink(requestUid:string,approve:boolean){
+  const scope=captureSession(),ref=doc(db,'linkRequests',requestUid);
+  await runTransaction(db,async tx=>{
+    const r=await tx.get(ref);assertSession(scope);
+    if(!r.exists()||r.data().status!=='pending'||r.data().approverUid!==scope.id||requestUid===scope.id)throw new TeamError('この確認依頼は処理できません。画面を更新してください。',409);
+    const data=r.data();
+    if(approve){
+      const p=await tx.get(memberRef(data.playerId));assertSession(scope);
+      if(!p.exists()||p.data().deletedAt||p.data().ownerUid!==null)throw new TeamError('選手情報が変更されたか、すでにアカウントと結び付いています。',409);
+      tx.update(memberRef(data.playerId),{ownerUid:requestUid,version:p.data().version+1,updatedAt:serverTimestamp()});
+      tx.set(doc(db,'memberships',requestUid),{playerId:data.playerId,active:true,joinKey:data.joinKey,createdAt:serverTimestamp()});
+    }
+    tx.update(ref,{status:approve?'approved':'rejected',decidedAt:serverTimestamp()});
+  });assertSession(scope);return {ok:true};
 }
 async function allMembers(){
   const scope=captureSession();
@@ -145,7 +188,12 @@ export async function firebaseRequest<T>(url:string,method:string,raw?:unknown):
   const scope=captureSession();
   const body=(raw||{}) as Row;let value:unknown;
   try{
-    if(url==='/api/team'&&method==='GET')value=await bootstrap();
+    if(url==='/api/link-requests'&&method==='GET')value=await linkRequests();
+    else if(/^\/api\/link-requests\/[^/]+$/.test(url)&&method==='POST'){
+      if(typeof body.approve!=='boolean')throw new TeamError('確認結果を選んでください。');
+      value=await decideLink(decodeURIComponent(url.split('/')[3]),body.approve);
+    }
+    else if(url==='/api/team'&&method==='GET')value=await bootstrap();
     else if(url.startsWith('/api/feedback')&&method==='GET')value=await journal(url.includes('more=1'));
     else if(/^\/api\/matches\/[^/]+\/feedback$/.test(url))value=await feedback(decodeURIComponent(url.split('/')[3]),method,body);
     else if(url==='/api/members'&&method==='POST')value=await writeMember(body);

@@ -57,13 +57,17 @@ export function MatchFeedbackModal({matchId,onClose,onSaved}:{matchId:string;onC
     </>:<>{error&&<p className="form-error" role="alert">{error}</p>}<div className="form-actions"><button className="secondary" type="button" onClick={()=>void load()}>再読み込み</button><button className="primary" type="button" onClick={onClose}>閉じる</button></div></>}
   </FeedbackDialog>;
 }
-export function FeedbackJournal({onClose,onSelect}:{onClose:()=>void;onSelect:(matchId:string)=>void}){
+export function FeedbackJournal({onClose,onSelect,availableMatches,viewerName}:{onClose:()=>void;onSelect:(matchId:string)=>void;availableMatches:{matchId:string;context:FeedbackContext}[];viewerName:string}){
   const [hasMore,setHasMore]=useState(false),[loadingMore,setLoadingMore]=useState(false);
   const [entries,setEntries]=useState<JournalEntry[]|null>(null),[error,setError]=useState(''),[retry,setRetry]=useState(0);
   useEffect(()=>{const controller=new AbortController();setError('');setEntries(null);void request<{feedback:JournalEntry[];hasMore?:boolean}>('/api/feedback','GET',undefined,controller.signal).then(data=>{setEntries(data.feedback);setHasMore(Boolean(data.hasMore));}).catch(failure=>{if(!controller.signal.aborted)setError((failure as Error).message);});return()=>controller.abort();},[retry]);
   async function more(){setLoadingMore(true);try{const data=await request<{feedback:JournalEntry[];hasMore?:boolean}>('/api/feedback?more=1');setEntries(current=>[...(current||[]),...data.feedback.filter(entry=>!current?.some(old=>old.matchId===entry.matchId))]);setHasMore(Boolean(data.hasMore));}catch(e){setError((e as Error).message);}finally{setLoadingMore(false);}}
-  return <FeedbackDialog title="自分の振り返り一覧" close={onClose}>
-    {error?<><p className="form-error" role="alert">{error}</p><button type="button" className="secondary" onClick={()=>setRetry(value=>value+1)}>再読み込み</button></>:entries===null?<p className="feedback-loading" role="status">読み込んでいます…</p>:entries.length?<ul className="feedback-journal-list">{entries.map(entry=><li key={entry.matchId}><button type="button" className="feedback-journal-entry" onClick={()=>onSelect(entry.matchId)}><MatchContext context={entry.context} archived={entry.archived}/><span className="feedback-journal-open">振り返りを開く ↗</span></button></li>)}</ul>:<div className="feedback-empty"><h3>振り返りはまだありません</h3><p>出場した試合の「自分の振り返り」から書けます。<br/>保存した振り返りは、この一覧で読み返せます。</p></div>}
+  return <FeedbackDialog title="自分のフィードバック" close={onClose}>
+    <section className="feedback-available" aria-labelledby="feedback-available-heading"><h3 id="feedback-available-heading">出場した試合から書く</h3>
+      {availableMatches.length?<ul className="feedback-journal-list">{availableMatches.map(entry=><li key={entry.matchId}><button type="button" className="feedback-journal-entry" onClick={()=>onSelect(entry.matchId)}><MatchContext context={entry.context}/><span className="feedback-journal-open">フィードバックを書く・編集する ↗</span></button></li>)}</ul>:<div className="feedback-empty"><h3>出場した試合がまだありません</h3><p>試合を記録するとき、出場選手に「{viewerName}」を選んでください。<br/>名簿に同じ名前が複数ある場合も、アカウントに結び付いた選手の記録だけが対象です。</p></div>}
+    </section>
+    <h3 className="feedback-saved-heading">保存した振り返り</h3>
+    {error?<><p className="form-error" role="alert">{error}</p><button type="button" className="secondary" onClick={()=>setRetry(value=>value+1)}>再読み込み</button></>:entries===null?<p className="feedback-loading" role="status">読み込んでいます…</p>:entries.length?<ul className="feedback-journal-list">{entries.map(entry=><li key={entry.matchId}><button type="button" className="feedback-journal-entry" onClick={()=>onSelect(entry.matchId)}><MatchContext context={entry.context} archived={entry.archived}/><span className="feedback-journal-open">振り返りを開く ↗</span></button></li>)}</ul>:<div className="feedback-empty"><h3>振り返りはまだありません</h3><p>上の出場試合からフィードバックを書けます。<br/>保存した振り返りは、この一覧で読み返せます。</p></div>}
     {hasMore&&entries&&<button className="secondary" disabled={loadingMore} onClick={()=>void more()}>{loadingMore?'読み込み中…':'もっと見る'}</button>}
   </FeedbackDialog>;
 }

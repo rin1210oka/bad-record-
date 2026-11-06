@@ -27,27 +27,75 @@ service cloud.firestore {
         && d.active == true && d.createdAt == request.time && d.playerId == 'self-' + uid
         && gate.enabled == true && gate.expiresAt > request.time && player.ownerUid == uid;
     }
+    function validGate(key) { let g = get(/databases/$(database)/documents/joinKeys/$(key)).data; return g.enabled == true && g.expiresAt > request.time; }
+    function invited() {
+      return google() && !exists(/databases/$(database)/documents/memberships/$(request.auth.uid)) && exists(/databases/$(database)/documents/joinSessions/$(request.auth.uid))
+        && get(/databases/$(database)/documents/joinSessions/$(request.auth.uid)).data.createdAt + duration.value(1,'h') > request.time
+        && validGate(get(/databases/$(database)/documents/joinSessions/$(request.auth.uid)).data.joinKey);
+    }
+    function pendingLink(uid) { return exists(/databases/$(database)/documents/linkRequests/$(uid)) && get(/databases/$(database)/documents/linkRequests/$(uid)).data.status == 'pending'; }
+    function approving(uid,playerId) {
+      let before = get(/databases/$(database)/documents/linkRequests/$(uid)).data;
+      let after = getAfter(/databases/$(database)/documents/linkRequests/$(uid)).data;
+      return member() && before.approverUid == request.auth.uid && before.status == 'pending' && before.playerId == playerId
+        && uid != request.auth.uid && after.status == 'approved' && after.decidedAt == request.time;
+    }
+    function linkedMembership(uid,d) {
+      let r = get(/databases/$(database)/documents/linkRequests/$(uid)).data;
+      return d.keys().hasOnly(['playerId','active','joinKey','createdAt']) && d.active == true && d.createdAt == request.time
+        && d.joinKey == r.joinKey && approving(uid,d.playerId)
+        && getAfter(/databases/$(database)/documents/players/$(d.playerId)).data.ownerUid == uid;
+    }
+    match /joinSessions/{uid} {
+      allow get: if google() && request.auth.uid == uid;
+      allow create, update: if google() && request.auth.uid == uid && !exists(/databases/$(database)/documents/memberships/$(uid))
+        && request.resource.data.keys().hasOnly(['joinKey','createdAt']) && request.resource.data.createdAt == request.time && validGate(request.resource.data.joinKey);
+      allow delete, list: if false;
+    }
+    match /linkRequests/{uid} {
+      allow get: if google() && (request.auth.uid == uid || member() && resource.data.approverUid == request.auth.uid);
+      allow list: if member() && resource.data.approverUid == request.auth.uid;
+      allow create: if invited() && request.auth.uid == uid && !exists(/databases/$(database)/documents/memberships/$(uid))
+        && request.resource.data.keys().hasOnly(['uid','playerId','playerName','approverUid','joinKey','status','createdAt','decidedAt'])
+        && request.resource.data.uid == uid && request.resource.data.status == 'pending' && request.resource.data.createdAt == request.time && request.resource.data.decidedAt == null
+        && request.resource.data.joinKey == get(/databases/$(database)/documents/joinSessions/$(uid)).data.joinKey
+        && request.resource.data.approverUid != uid
+        && get(/databases/$(database)/documents/memberships/$(request.resource.data.approverUid)).data.active == true
+        && get(/databases/$(database)/documents/players/$(get(/databases/$(database)/documents/memberships/$(request.resource.data.approverUid)).data.playerId)).data.ownerUid == request.resource.data.approverUid
+        && get(/databases/$(database)/documents/players/$(request.resource.data.playerId)).data.ownerUid == null
+        && get(/databases/$(database)/documents/players/$(request.resource.data.playerId)).data.deletedAt == null
+        && request.resource.data.playerName == get(/databases/$(database)/documents/players/$(request.resource.data.playerId)).data.name;
+      allow update: if member() && resource.data.approverUid == request.auth.uid && resource.data.uid != request.auth.uid && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status','decidedAt']) && request.resource.data.decidedAt == request.time
+        && (request.resource.data.status == 'rejected' || request.resource.data.status == 'approved'
+          && getAfter(/databases/$(database)/documents/memberships/$(uid)).data.playerId == resource.data.playerId
+          && getAfter(/databases/$(database)/documents/memberships/$(uid)).data.active == true
+          && getAfter(/databases/$(database)/documents/players/$(resource.data.playerId)).data.ownerUid == uid);
+      allow delete: if false;
+    }
     match /joinKeys/{key} { allow read, write: if false; }
     match /memberships/{uid} {
       allow get: if google() && request.auth.uid == uid;
-      allow create: if joined(uid,request.resource.data);
+      allow create: if joined(uid,request.resource.data) && !pendingLink(uid) || linkedMembership(uid,request.resource.data);
       allow update, delete, list: if false;
     }
     match /players/{id} {
-      allow get: if member() || google() && id == 'self-' + request.auth.uid;
-      allow list: if member();
+      allow get: if member() || invited() && resource.data.deletedAt == null || google() && id == 'self-' + request.auth.uid;
+      allow list: if member() || invited() && resource.data.deletedAt == null;
       allow create: if playerShape(request.resource.data,id) && named(request.resource.data,id)
         && request.resource.data.version == 1 && request.resource.data.createdAt == request.time && request.resource.data.deletedAt == null
         && (member() && request.resource.data.ownerUid == null
           || google() && id == 'self-' + request.auth.uid && request.resource.data.ownerUid == request.auth.uid
             && getAfter(/databases/$(database)/documents/memberships/$(request.auth.uid)).data.playerId == id);
       allow update: if member() && playerShape(request.resource.data,id) && named(request.resource.data,id)
-        && request.resource.data.ownerUid == resource.data.ownerUid && request.resource.data.createdAt == resource.data.createdAt
+        && (request.resource.data.ownerUid == resource.data.ownerUid || resource.data.ownerUid == null && resource.data.deletedAt == null
+          && request.resource.data.ownerUid is string && approving(request.resource.data.ownerUid,id)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerUid','version','updatedAt'])) && request.resource.data.createdAt == resource.data.createdAt
         && request.resource.data.version == resource.data.version + 1;
       allow delete: if false;
     }
     match /playerNames/{key} {
-      allow get: if member() || google() && !exists(/databases/$(database)/documents/playerNames/$(key));
+      allow get: if member() || invited() || google() && !exists(/databases/$(database)/documents/playerNames/$(key));
       allow list: if false;
       allow create: if google() && request.resource.data.keys().hasOnly(['playerId','key']) && key == hash(request.resource.data.key)
         && getAfter(/databases/$(database)/documents/players/$(request.resource.data.playerId)).data.nameLock == key
